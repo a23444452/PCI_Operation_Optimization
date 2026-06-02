@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Output
+defect_report.xlsx
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+.remember/
+.claude_review_state.json
+
+# OS
+Thumbs.db
+.DS_Store
