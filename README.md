@@ -430,7 +430,7 @@ Base URL: `http://localhost:8001/api/v1`
 ### Backend (.env)
 
 ```env
-# Database
+# Database (local PostgreSQL cache)
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5433/pci_optimization
 
 # JWT
@@ -447,16 +447,19 @@ AD_REQUIRED_GROUP=PCI-Optimization-Access
 LDAP_BIND_DN=corning.com\\svc_pci_app
 LDAP_BIND_PASSWORD=service-account-password
 
-# ETL Sources
+# ETL Sources (reference: config.py)
 PPDA_CONN=oracle+oracledb://training:training@TC_PPDA
 MESDW_CONN=mssql+pyodbc://TCF11SQL2011/MESDW?Trusted_Connection=yes&driver=SQL+Server
 CUBE_CONN=Provider=MSOLAP;Data Source=cgtppd;Catalog=ppd;
-ADOMD_DLL_PATH=C:\path\to\Microsoft.AnalysisServices.AdomdClient.dll
+ADOMD_DLL_PATH=C:\Users\wangm44
 SHIPPING_FOLDER=\\\\server\\share\\shipping
 
 # ETL Toggle
 ETL_ENABLED=true
 ```
+
+> **Note:** ETL connection strings are derived from the legacy `config.py` at project root.
+> The ADOMD DLL path points to the directory containing `Microsoft.AnalysisServices.AdomdClient.dll`.
 
 ### Frontend (.env)
 

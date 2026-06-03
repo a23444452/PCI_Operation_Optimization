@@ -430,7 +430,7 @@ Admin 使用者可從管理儀表板手動觸發任一 ETL 作業，適用場景
 ### 後端（.env）
 
 ```env
-# 資料庫
+# 資料庫（本地 PostgreSQL 快取）
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5433/pci_optimization
 
 # JWT
@@ -447,16 +447,29 @@ AD_REQUIRED_GROUP=PCI-Optimization-Access
 LDAP_BIND_DN=corning.com\\svc_pci_app
 LDAP_BIND_PASSWORD=service-account-password
 
-# ETL 資料來源
+# ETL 資料來源（參考：config.py）
 PPDA_CONN=oracle+oracledb://training:training@TC_PPDA
 MESDW_CONN=mssql+pyodbc://TCF11SQL2011/MESDW?Trusted_Connection=yes&driver=SQL+Server
 CUBE_CONN=Provider=MSOLAP;Data Source=cgtppd;Catalog=ppd;
-ADOMD_DLL_PATH=C:\path\to\Microsoft.AnalysisServices.AdomdClient.dll
+ADOMD_DLL_PATH=C:\Users\wangm44
 SHIPPING_FOLDER=\\\\server\\share\\shipping
 
 # ETL 開關
 ETL_ENABLED=true
 ```
+
+> **備註：** ETL 連線字串源自專案根目錄的 legacy `config.py`。
+> ADOMD DLL 路徑指向存放 `Microsoft.AnalysisServices.AdomdClient.dll` 的目錄。
+
+#### 連線設定說明（對應 config.py）
+
+| 變數 | 用途 | 來源系統 |
+|------|------|---------|
+| `PPDA_CONN` | Oracle 缺陷檢驗資料庫 | TC_PPDA（TNS 名稱） |
+| `MESDW_CONN` | SQL Server 批次/crate 中繼資料 | TCF11SQL2011\MESDW（Windows 認證） |
+| `CUBE_CONN` | SSAS Cube MSL 聚合數據 | cgtppd 伺服器，ppd catalog |
+| `ADOMD_DLL_PATH` | .NET ADOMD Client DLL 所在目錄 | 本機路徑 |
+| `SHIPPING_FOLDER` | 出貨排程 Excel 檔案目錄 | 共享網路資料夾 |
 
 ### 前端（.env）
 
