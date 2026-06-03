@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -6,7 +8,16 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.middleware.rate_limit import limiter
 
-app = FastAPI(title="PCI Operation Optimization", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app):
+    from app.etl.scheduler import setup_scheduler
+
+    setup_scheduler()
+    yield
+
+
+app = FastAPI(title="PCI Operation Optimization", version="0.1.0", lifespan=lifespan)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
