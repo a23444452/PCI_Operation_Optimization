@@ -51,3 +51,11 @@ app.include_router(offload_router)
 from app.routers.shipping import router as shipping_router
 
 app.include_router(shipping_router)
+
+from app.routers.coa import router as coa_router
+
+app.include_router(coa_router)
+
+from app.routers.analysis import router as analysis_router
+
+app.include_router(analysis_router)
