@@ -1,13 +1,12 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.dependencies import get_current_user, get_db
+from app.middleware.rate_limit import limiter
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
@@ -26,8 +25,6 @@ from app.utils.ldap_validation import check_ad_group_membership
 from app.utils.security import create_access_token, create_refresh_token, decode_token
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
-
-limiter = Limiter(key_func=get_remote_address)
 
 
 def _build_user_info(user: User) -> UserInfo:

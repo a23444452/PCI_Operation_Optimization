@@ -19,6 +19,7 @@ import struct
 
 import ldap3
 from ldap3 import NTLM, Connection, Server
+from ldap3.utils.conv import escape_filter_chars
 
 from app.config import settings
 
@@ -308,10 +309,10 @@ def check_ad_group_membership(username: str, required_group: str) -> bool:
         return False
 
     try:
-        # First find the user's DN
+        safe_username = escape_filter_chars(username)
         conn.search(
             search_base=_AD_SEARCH_BASE,
-            search_filter=f"(sAMAccountName={username})",
+            search_filter=f"(sAMAccountName={safe_username})",
             attributes=["distinguishedName"],
         )
         if not conn.entries:
@@ -320,10 +321,9 @@ def check_ad_group_membership(username: str, required_group: str) -> bool:
 
         user_dn = str(conn.entries[0].distinguishedName)
 
-        # Now check recursive membership using LDAP_MATCHING_RULE_IN_CHAIN
-        # OID 1.2.840.113556.1.4.1941
+        safe_group = escape_filter_chars(required_group)
         search_filter = (
-            f"(&(objectClass=group)(cn={required_group})"
+            f"(&(objectClass=group)(cn={safe_group})"
             f"(member:1.2.840.113556.1.4.1941:={user_dn}))"
         )
         conn.search(
@@ -356,10 +356,10 @@ def get_user_groups(username: str) -> list[str]:
         return []
 
     try:
-        # Find the user's DN
+        safe_username = escape_filter_chars(username)
         conn.search(
             search_base=_AD_SEARCH_BASE,
-            search_filter=f"(sAMAccountName={username})",
+            search_filter=f"(sAMAccountName={safe_username})",
             attributes=["memberOf"],
         )
         if not conn.entries:
