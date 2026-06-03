@@ -12,9 +12,9 @@ import { COAPage } from "./features/coa/COAPage";
 import { DailyMLPage } from "./features/daily-analysis/DailyMLPage";
 import { DailyMSLPage } from "./features/daily-analysis/DailyMSLPage";
 import { DailyAttributePage } from "./features/daily-analysis/DailyAttributePage";
-import { RiskPage } from "./pages/RiskPage";
-import { DataManagementPage } from "./pages/DataManagementPage";
-import { UsersPage } from "./pages/UsersPage";
+import { RiskPage } from "./features/risk/RiskPage";
+import { DataManagementPage } from "./features/data-mgmt/DataManagementPage";
+import { AdminPage } from "./features/admin/AdminPage";
 import { LoginPage } from "./pages/LoginPage";
 
 const queryClient = new QueryClient({
@@ -52,7 +52,7 @@ export default function App() {
                 <Route path="/analysis/attribute" element={<DailyAttributePage />} />
                 <Route path="/risk" element={<RiskPage />} />
                 <Route path="/data-management" element={<DataManagementPage />} />
-                <Route path="/admin/users" element={<UsersPage />} />
+                <Route path="/admin/users" element={<AdminPage />} />
               </Route>
             </Routes>
           </BrowserRouter>
