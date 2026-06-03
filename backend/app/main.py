@@ -59,3 +59,15 @@ app.include_router(coa_router)
 from app.routers.analysis import router as analysis_router
 
 app.include_router(analysis_router)
+
+from app.routers.risk import router as risk_router
+
+app.include_router(risk_router)
+
+from app.routers.data_management import router as data_mgmt_router
+
+app.include_router(data_mgmt_router)
+
+from app.routers.admin import router as admin_router
+
+app.include_router(admin_router)
