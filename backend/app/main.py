@@ -47,3 +47,7 @@ app.include_router(users_router)
 from app.routers.offload import router as offload_router
 
 app.include_router(offload_router)
+
+from app.routers.shipping import router as shipping_router
+
+app.include_router(shipping_router)
