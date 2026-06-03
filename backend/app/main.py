@@ -43,3 +43,7 @@ app.include_router(auth_router)
 from app.routers.users import router as users_router
 
 app.include_router(users_router)
+
+from app.routers.offload import router as offload_router
+
+app.include_router(offload_router)
