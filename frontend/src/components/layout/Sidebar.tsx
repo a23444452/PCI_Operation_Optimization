@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Package,
   Truck,
@@ -12,6 +12,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/features/auth/useAuth";
 
 const navItems = [
   { path: "/offload", label: "PCI Offload", icon: Package },
@@ -29,6 +30,14 @@ const adminItems = [
 ];
 
 export function Sidebar() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   return (
     <aside className="flex w-64 flex-col border-r border-gray-200 bg-white">
       <div className="flex h-16 items-center px-6">
@@ -72,7 +81,10 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="border-t border-gray-200 p-3">
-        <button className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+        >
           <LogOut className="h-4 w-4" />
           Logout
         </button>
