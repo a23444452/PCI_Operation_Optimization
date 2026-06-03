@@ -14,17 +14,28 @@ Full-stack web application for PCI (Process Control Inspection) operation optimi
 
 - Python 3.11+
 - Node.js 20+
-- PostgreSQL 15+ (running on port 5433)
-- Access to Corning AD domain (ap.corning.com)
+- **Development:** No external DB required (uses SQLite)
+- **Production:** PostgreSQL 15+ (running on port 5433)
+- Access to Corning AD domain (ap.corning.com) — for SSO/LDAP
 - Network access to Oracle PPDA, MESDW SQL Server, SSAS Cube (for ETL)
 
 ## Quick Start
 
-### 1. PostgreSQL
+### 1. Database
 
-Create a database:
+**Development (SQLite — zero setup):**
+
+The default `.env` uses SQLite. No database installation required.
+
+**Production (PostgreSQL):**
+
 ```sql
 CREATE DATABASE pci_optimization;
+```
+
+Then update `.env`:
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pci_optimization
 ```
 
 ### 2. Backend
@@ -40,7 +51,7 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your database URL and Azure AD settings
 
-# Run migrations
+# Run migrations (works with both SQLite and PostgreSQL)
 alembic upgrade head
 
 # Seed initial data (plants, tanks, items, admin user)
@@ -430,8 +441,11 @@ Base URL: `http://localhost:8001/api/v1`
 ### Backend (.env)
 
 ```env
-# Database (local PostgreSQL cache)
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5433/pci_optimization
+# Database
+# Development (SQLite — no installation needed):
+DATABASE_URL=sqlite:///./dev.db
+# Production (PostgreSQL):
+# DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pci_optimization
 
 # JWT
 JWT_SECRET=your-secret-key-here
@@ -460,6 +474,7 @@ ETL_ENABLED=true
 
 > **Note:** ETL connection strings are derived from the legacy `config.py` at project root.
 > The ADOMD DLL path points to the directory containing `Microsoft.AnalysisServices.AdomdClient.dll`.
+> SQLite `dev.db` is auto-created and git-ignored. Switch to PostgreSQL for production.
 
 ### Frontend (.env)
 

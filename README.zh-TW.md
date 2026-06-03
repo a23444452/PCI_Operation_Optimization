@@ -14,17 +14,28 @@
 
 - Python 3.11+
 - Node.js 20+
-- PostgreSQL 15+（使用 port 5433）
-- Corning AD 網域存取權限（ap.corning.com）
+- **開發環境：** 無需額外安裝資料庫（使用 SQLite）
+- **正式環境：** PostgreSQL 15+（port 5433）
+- Corning AD 網域存取權限（ap.corning.com）— SSO/LDAP 用
 - Oracle PPDA、MESDW SQL Server、SSAS Cube 的網路連線（ETL 用）
 
 ## 快速啟動
 
-### 1. PostgreSQL
+### 1. 資料庫
 
-建立資料庫：
+**開發環境（SQLite — 免安裝）：**
+
+預設 `.env` 使用 SQLite，無需安裝任何資料庫，直接進入步驟 2。
+
+**正式環境（PostgreSQL）：**
+
 ```sql
 CREATE DATABASE pci_optimization;
+```
+
+修改 `.env`：
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pci_optimization
 ```
 
 ### 2. 後端
@@ -40,7 +51,7 @@ pip install -r requirements.txt
 cp .env.example .env
 # 編輯 .env，填入資料庫連線及 Azure AD 設定
 
-# 執行資料庫遷移
+# 執行資料庫遷移（SQLite 和 PostgreSQL 皆適用）
 alembic upgrade head
 
 # 匯入初始資料（廠區、槽體、項目、管理員帳號）
@@ -430,8 +441,11 @@ Admin 使用者可從管理儀表板手動觸發任一 ETL 作業，適用場景
 ### 後端（.env）
 
 ```env
-# 資料庫（本地 PostgreSQL 快取）
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5433/pci_optimization
+# 資料庫
+# 開發環境（SQLite — 免安裝）：
+DATABASE_URL=sqlite:///./dev.db
+# 正式環境（PostgreSQL）：
+# DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pci_optimization
 
 # JWT
 JWT_SECRET=your-secret-key-here
@@ -460,6 +474,7 @@ ETL_ENABLED=true
 
 > **備註：** ETL 連線字串源自專案根目錄的 legacy `config.py`。
 > ADOMD DLL 路徑指向存放 `Microsoft.AnalysisServices.AdomdClient.dll` 的目錄。
+> SQLite `dev.db` 會自動建立並已加入 `.gitignore`。正式部署時切換為 PostgreSQL。
 
 #### 連線設定說明（對應 config.py）
 

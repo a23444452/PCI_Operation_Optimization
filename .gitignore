@@ -10,6 +10,9 @@ venv/
 # Output
 defect_report.xlsx
 
+# SQLite dev database
+*.db
+
 # IDE
 .vscode/
 .idea/
