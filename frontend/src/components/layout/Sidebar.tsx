@@ -89,17 +89,17 @@ export function Sidebar() {
     <aside
       className={cn(
         "flex flex-col bg-sidebar text-white transition-all duration-300",
-        collapsed ? "w-16" : "w-56"
+        collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo area */}
-      <div className="flex h-36 items-center justify-center border-b border-white/10 px-2">
+      <div className="flex h-56 items-center justify-center border-b border-white/10 px-2">
         <img
           src="/PCI_Logo_V1.png"
           alt="PCI Hermes Platform"
           className={cn(
             "object-contain",
-            collapsed ? "h-10 w-10" : "h-28"
+            collapsed ? "h-10 w-10" : "h-56"
           )}
         />
       </div>

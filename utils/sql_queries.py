@@ -1,4 +1,4 @@
-"""SQL and MDX query templates."""
+"""SQL & MDX query templates."""
 
 
 def build_in_clause(values) -> str:
@@ -8,26 +8,86 @@ def build_in_clause(values) -> str:
 
 
 # ============================================================
-# MESDW: get batch / crate / qty mapping
+# MESDW: batch / crate / qty / dates
 # ============================================================
-BATCH_CRATE_QTY_SQL = """
-SELECT 
-    Mother_Crate_ID       AS crate_id,
-    Cut_Lot_ID            AS batch_id,
-    Cut_Lot_Load_Sht_Qty  AS in_qty,
+BATCH_CRATE_SQL = """
+SELECT
+    Mother_Crate_ID         AS crate_id,
+    Tank_ID                 AS tank_id,
+    Cut_Lot_ID              AS batch_id,
+    Cut_Lot_Start_Date,
     Cut_Lot_End_Date
 FROM dbo.CRATE_MES_SUMM
-WHERE Cut_Lot_End_Date >= DATEADD(DAY, -1, GETDATE())
-  AND Cut_Lot_End_Date <  DATEADD(DAY, -1, GETDATE())
-  AND Cut_Lot_ID LIKE 'C%'
+WHERE Cut_Lot_End_Date >= DATEADD(DAY, -1.5, GETDATE())
+AND Cut_Lot_ID LIKE 'C%'
+AND Mother_Crate_ID LIKE 'TC%'
 """
 
 
+def build_batch_crate_query(start_date: str, end_date: str) -> str:
+    """Parameterized version of BATCH_CRATE_SQL with explicit date range."""
+    return f"""
+    SELECT
+        Mother_Crate_ID         AS crate_id,
+        Tank_ID                 AS tank_id,
+        Cut_Lot_ID              AS batch_id,
+        Cut_Lot_Start_Date,
+        Cut_Lot_End_Date
+    FROM dbo.CRATE_MES_SUMM
+    WHERE Cut_Lot_End_Date >= '{start_date}'
+      AND Cut_Lot_End_Date <= '{end_date} 23:59:59'
+      AND Cut_Lot_ID LIKE 'C%'
+      AND Mother_Crate_ID LIKE 'TC%'
+    """
+
+
 # ============================================================
-# PPDA: defect details per batch
+# PPDA: crate audit (get START_TIME, END_TIME, QUANTITY)
 # ============================================================
-def build_defect_query(batch_id: str) -> str:
-    """Build the big defect query for a single BATCH_ID."""
+def build_crate_audit_query(crate_in_clause: str) -> str:
+    return f"""
+    SELECT CRATE_ID, ITM_NAME, ITM_VALUE1
+    FROM IWMES.DIMES_PPTU_PT_CRATEAUDIT
+    WHERE CRATE_ID IN ({crate_in_clause})
+    AND ITM_NAME IN ('START_TIME', 'END_TIME', 'QUANTITY')
+    """
+
+
+# ============================================================
+# PPDA: SOLID inspection (CRBIS)
+# ============================================================
+def build_crbis_input_query(tank: str, start: str, end: str) -> str:
+    return f"""
+    SELECT SAMPLE_TS, BATCH_ID, SHEET_ID
+    FROM ONEMES.PPT_QC_CRBIS_SUMM
+    WHERE TANK_ID = '{tank}'
+      AND SAMPLE_TS >= TO_DATE('{start}', 'yyyy-mm-dd HH24:MI')
+      AND SAMPLE_TS <= TO_DATE('{end}',   'yyyy-mm-dd HH24:MI')
+    """
+
+
+def build_crbis_defect_query(tank: str, start: str, end: str) -> str:
+    return f"""
+    SELECT SAMPLE_TS, TANK_ID, DEFECT_TYPE, X_POSITION, Y_POSITION,
+           DEFECT_SIZE, DEFECT_JUDGMENT, AJ_DECISION
+    FROM ONEMES.PPT_QC_CRBIS_DETAIL
+    WHERE TANK_ID = '{tank}'
+      AND DEFECT_TYPE = 4
+      AND SAMPLE_TS >= TO_DATE('{start}', 'yyyy-mm-dd HH24:MI')
+      AND SAMPLE_TS <= TO_DATE('{end}',   'yyyy-mm-dd HH24:MI')
+    """
+
+
+# ============================================================
+# PPDA: defect details (per batch)
+# ============================================================
+def build_defect_query(batch_ids: list) -> str:
+    """
+    Heavy defect query for multiple BATCH_IDs (using IN clause).
+    
+    Note: Use chunks of <= 1000 to avoid Oracle ORA-01795.
+    """
+    in_clause = build_in_clause(batch_ids)
     return f"""
     SELECT DISTINCT
         U.BATCH_ID, U.SHEET_ID, U.LINE_ID,
@@ -70,7 +130,7 @@ def build_defect_query(batch_id: str) -> str:
     FROM (
         SELECT LINE_ID, BATCH_ID, SHEET_ID
         FROM ONEMES.PDAS_LS_WARE
-        WHERE BATCH_ID = '{batch_id}'
+        WHERE BATCH_ID IN ({in_clause})
     ) U
 
     LEFT JOIN ONEMES.PDAS_LS_MRS_PARTICLE_V ATS_MRS
@@ -116,10 +176,9 @@ def build_defect_query(batch_id: str) -> str:
 
 
 # ============================================================
-# MDX: cube defect-loss query
+# Cube: defect-loss MDX
 # ============================================================
 def build_cube_query(crate_ids: list) -> str:
-    """Build the MDX query for the given Crate IDs."""
     crate_set = ",\n            ".join(
         f"[Finishing Source Tank].[Mother Crate ID].&[{cid}]"
         for cid in crate_ids
