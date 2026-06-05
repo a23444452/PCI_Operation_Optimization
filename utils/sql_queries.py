@@ -17,7 +17,7 @@ SELECT
     Cut_Lot_Load_Sht_Qty  AS in_qty,
     Cut_Lot_End_Date
 FROM dbo.CRATE_MES_SUMM
-WHERE Cut_Lot_End_Date >= DATEADD(DAY, -2, GETDATE())
+WHERE Cut_Lot_End_Date >= DATEADD(DAY, -1, GETDATE())
   AND Cut_Lot_End_Date <  DATEADD(DAY, -1, GETDATE())
   AND Cut_Lot_ID LIKE 'C%'
 """

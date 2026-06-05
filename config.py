@@ -17,7 +17,7 @@ CUBE_CONN = (
 )
 
 # ADOMD client DLL path (for cube queries)
-ADOMD_DLL_PATH = r"C:\Users\linp21"
+ADOMD_DLL_PATH = r"C:\Users\wangm44"
 
 
 # ============================================================

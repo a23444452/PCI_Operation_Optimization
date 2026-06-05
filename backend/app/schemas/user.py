@@ -21,3 +21,12 @@ class UpdateUserStatus(BaseModel):
 
 class UpdateUserPermissions(BaseModel):
     permissions: list[str]
+
+
+class ApproveUserRequest(BaseModel):
+    role: str = "viewer"
+    permissions: list[str] = []
+
+
+class RejectUserRequest(BaseModel):
+    reason: str | None = None

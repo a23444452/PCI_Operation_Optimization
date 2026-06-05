@@ -1,0 +1,205 @@
+import logging
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+CORNING_SMTP_HOST = "smtphub.corning.com"
+CORNING_SMTP_PORT = 25
+DEFAULT_SENDER = "PCIHermes@corning.com"
+
+
+def send_email(to_emails: list[str], subject: str, body: str, sender: str | None = None) -> bool:
+    if not to_emails:
+        logger.info("No recipients provided, skipping email send")
+        return False
+
+    smtp_host = settings.smtp_host or CORNING_SMTP_HOST
+    smtp_port = settings.smtp_port if settings.smtp_host else CORNING_SMTP_PORT
+    from_email = sender or settings.smtp_sender or DEFAULT_SENDER
+    use_auth = bool(settings.smtp_host and settings.smtp_user and settings.smtp_password)
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = from_email
+        msg["To"] = ", ".join(to_emails)
+
+        html_part = MIMEText(body, "html", "utf-8")
+        msg.attach(html_part)
+
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            if use_auth:
+                server.starttls()
+                server.login(settings.smtp_user, settings.smtp_password)
+            server.sendmail(from_email, to_emails, msg.as_string())
+
+        logger.info(f"Email sent successfully to {len(to_emails)} recipients via {smtp_host}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
+        return False
+
+
+def send_new_user_registration_notification(
+    admin_emails: list[str],
+    username: str,
+    display_name: str,
+    email: str,
+) -> bool:
+    base_url = settings.app_base_url.rstrip("/")
+    subject = f"[PCI Hermes] New User Registration Pending: {username}"
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            h2 {{ color: #0e7490; }}
+            .info {{ background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0; }}
+            .info p {{ margin: 5px 0; }}
+            .btn {{ display: inline-block; background: #0e7490; color: white; padding: 10px 20px;
+                    text-decoration: none; border-radius: 5px; margin-top: 15px; }}
+            .btn:hover {{ background: #0891b2; }}
+            .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>New User Registration</h2>
+            <p>A new user has registered and is awaiting your approval:</p>
+            <div class="info">
+                <p><strong>Name:</strong> {display_name}</p>
+                <p><strong>Account:</strong> {username}</p>
+                <p><strong>Email:</strong> {email}</p>
+            </div>
+            <p>Please log in to the system to review:</p>
+            <a href="{base_url}/admin/users" class="btn">Go to User Management</a>
+            <div class="footer">
+                <p>Best regards,<br>PCI Hermes Platform</p>
+                <p><em>Note: Replies to this email address are not monitored.</em></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email(admin_emails, subject, body)
+
+
+def send_user_pending_notification(user_email: str, username: str, display_name: str) -> bool:
+    base_url = settings.app_base_url.rstrip("/")
+    subject = "[PCI Hermes] Your Registration Is Pending Approval"
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            h2 {{ color: #0e7490; }}
+            .info {{ background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0e7490; }}
+            .info p {{ margin: 5px 0; }}
+            .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Registration Received</h2>
+            <p>Hi {display_name},</p>
+            <p>Your PCI Hermes Platform account registration has been received.</p>
+            <div class="info">
+                <p><strong>Account:</strong> {username}</p>
+                <p><strong>Status:</strong> Pending administrator approval</p>
+            </div>
+            <p>You will receive another email once your account has been reviewed by an administrator.</p>
+            <p>System URL: <a href="{base_url}">{base_url}</a></p>
+            <div class="footer">
+                <p>Best regards,<br>PCI Hermes Platform</p>
+                <p><em>Note: Replies to this email address are not monitored.</em></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email([user_email], subject, body)
+
+
+def send_user_approved_notification(user_email: str, username: str, display_name: str) -> bool:
+    base_url = settings.app_base_url.rstrip("/")
+    subject = "[PCI Hermes] Your Account Has Been Approved"
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            h2 {{ color: #16a34a; }}
+            .info {{ background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #16a34a; }}
+            .btn {{ display: inline-block; background: #16a34a; color: white; padding: 10px 20px;
+                    text-decoration: none; border-radius: 5px; margin-top: 15px; }}
+            .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Account Approved</h2>
+            <p>Hi {display_name},</p>
+            <p>Your PCI Hermes Platform account <strong>{username}</strong> has been approved. You can now log in.</p>
+            <a href="{base_url}/login" class="btn">Log In Now</a>
+            <div class="footer">
+                <p>Best regards,<br>PCI Hermes Platform</p>
+                <p><em>Note: Replies to this email address are not monitored.</em></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email([user_email], subject, body)
+
+
+def send_user_rejected_notification(
+    user_email: str, username: str, display_name: str, reason: str | None = None
+) -> bool:
+    reason_text = f"<p><strong>Reason:</strong> {reason}</p>" if reason else ""
+    subject = "[PCI Hermes] Your Registration Has Been Rejected"
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            h2 {{ color: #dc2626; }}
+            .info {{ background: #fef2f2; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #dc2626; }}
+            .info p {{ margin: 5px 0; }}
+            .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Registration Rejected</h2>
+            <p>Hi {display_name},</p>
+            <p>Your PCI Hermes Platform account <strong>{username}</strong> registration has not been approved.</p>
+            <div class="info">
+                {reason_text}
+            </div>
+            <p>If you have questions, please contact the system administrator.</p>
+            <div class="footer">
+                <p>Best regards,<br>PCI Hermes Platform</p>
+                <p><em>Note: Replies to this email address are not monitored.</em></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email([user_email], subject, body)

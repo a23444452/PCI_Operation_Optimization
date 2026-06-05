@@ -21,6 +21,7 @@ from app.schemas.auth import (
 from app.schemas.common import ok
 from app.services.auth_service import _unusable_password_hash, authenticate_user
 from app.utils.azure_ad import AzureADTokenError, verify_azure_access_token
+from app.utils.email import send_new_user_registration_notification, send_user_pending_notification
 from app.utils.ldap_validation import check_ad_group_membership
 from app.utils.security import create_access_token, create_refresh_token, decode_token
 
@@ -102,9 +103,8 @@ def sso_login(
     user = db.query(User).filter(func.lower(User.username) == username).first()
 
     if user is None:
-        # User not registered yet
         display_name = claims.get("name", username)
-        email = claims.get("upn", f"{username}@{settings.azure_ad_tenant_id}")
+        email = claims.get("upn", f"{username}@corning.com")
         return ok(
             SSOLoginNeedRegistration(
                 username=username,
@@ -114,9 +114,7 @@ def sso_login(
         )
 
     if user.status == "pending":
-        return ok(
-            SSOLoginPendingApproval(username=username).model_dump()
-        )
+        return ok(SSOLoginPendingApproval(username=username).model_dump())
 
     if user.status != "active":
         raise HTTPException(status_code=403, detail="Account is not active")
@@ -189,6 +187,30 @@ def sso_register(
     db.add(new_user)
     db.commit()
 
+    # Notify admins via email
+    if settings.admin_notification_emails:
+        admin_emails = [e.strip() for e in settings.admin_notification_emails.split(",") if e.strip()]
+    else:
+        admin_emails = [
+            u.email
+            for u in db.query(User).filter(User.role == "admin", User.status == "active").all()
+            if u.email
+        ]
+    if admin_emails:
+        send_new_user_registration_notification(
+            admin_emails=admin_emails,
+            username=username,
+            display_name=display_name,
+            email=email,
+        )
+
+    # Notify user that registration is pending
+    send_user_pending_notification(
+        user_email=email,
+        username=username,
+        display_name=display_name,
+    )
+
     return ok({"message": "Registration submitted. Awaiting admin approval."})
 
 
@@ -226,3 +248,14 @@ def me(user: User = Depends(get_current_user)):
             permissions=[p.feature_key for p in user.permissions],
         ).model_dump()
     )
+
+
+@router.get("/system-config")
+def system_config():
+    admin_emails = []
+    if settings.admin_notification_emails:
+        admin_emails = [e.strip() for e in settings.admin_notification_emails.split(",") if e.strip()]
+    return ok({
+        "admin_emails": admin_emails,
+        "app_url": settings.app_base_url,
+    })

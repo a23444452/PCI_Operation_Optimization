@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+@theme {
+  --color-sidebar: #0f172a;
+  --color-sidebar-hover: #1e293b;
+  --color-sidebar-active: #0e7490;
+  --color-accent: #06b6d4;
+  --color-accent-hover: #0891b2;
+  --color-surface: #f8fafc;
+  --color-card: #ffffff;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

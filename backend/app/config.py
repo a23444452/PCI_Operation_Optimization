@@ -22,6 +22,17 @@ class Settings(BaseSettings):
     ldap_bind_dn: str = ""
     ldap_bind_password: str = ""
 
+    # SMTP (Corning internal: smtphub.corning.com:25, no auth needed)
+    smtp_host: str = ""
+    smtp_port: int = 25
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_sender: str = "PCIHermes@corning.com"
+
+    # Admin notification
+    admin_notification_emails: str = ""
+    app_base_url: str = "http://localhost:8080"
+
     # External data sources
     ppda_conn: str = ""  # Oracle connection string for PPDA
     mesdw_conn: str = ""  # MSSQL connection string for MESDW
