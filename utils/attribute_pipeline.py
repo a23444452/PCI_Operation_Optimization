@@ -311,7 +311,7 @@ def run_attribute_pipeline(crate_list: list,
     process    : "MES" or "Juno"
     """
     if not crate_list:
-        print("⚠️ No crate_list provided, skipping attribute pipeline")
+        print("[WARN] No crate_list provided, skipping attribute pipeline")
         return pd.DataFrame(columns=ATTR_CUSTOMER_COLUMN_ORDER)
 
     print(f"  ▸ Quality wide table ({process})...")

@@ -6,6 +6,7 @@ import {
   Loader2,
   AlertCircle,
   Search,
+  RefreshCw,
 } from "lucide-react";
 import api from "@/lib/api";
 import { usePlants } from "./usePlants";
@@ -27,6 +28,12 @@ interface EvaluationItem {
   failed_criteria: string[];
 }
 
+interface CacheMeta {
+  cached: boolean;
+  cached_at?: string;
+  triggered_by?: string;
+}
+
 interface PipelineResult {
   receiver_specs: Record<string, Record<string, unknown>[]>;
   general_spec: Record<string, unknown>[];
@@ -34,6 +41,7 @@ interface PipelineResult {
   attribute: Record<string, unknown>[];
   evaluation: Record<string, EvaluationItem[]>;
   summary: Record<string, number>;
+  _cache_meta?: CacheMeta;
 }
 
 function DataTable({ data, title }: { data: Record<string, unknown>[]; title: string }) {
@@ -95,6 +103,8 @@ export function OffloadPage() {
     }
   }, [plants]);
 
+  const [pipelineData, setPipelineData] = useState<PipelineResult | null>(null);
+
   const pipelineMutation = useMutation<PipelineResult>({
     mutationFn: async () => {
       const res = await api.get("/offload/pipeline", {
@@ -107,6 +117,7 @@ export function OffloadPage() {
       return res.data.data;
     },
     onSuccess: (data) => {
+      setPipelineData(data);
       const specNames = Object.keys(data.receiver_specs);
       if (specNames.length > 0 && !activeReceiverSpec) {
         setActiveReceiverSpec(specNames[0]);
@@ -114,11 +125,31 @@ export function OffloadPage() {
     },
   });
 
+  const refreshMutation = useMutation<PipelineResult>({
+    mutationFn: async () => {
+      const res = await api.post("/offload/pipeline/refresh", null, {
+        params: {
+          start_date: startDate,
+          end_date: endDate,
+          plants: selectedPlants.join(","),
+        },
+      });
+      return res.data.data;
+    },
+    onSuccess: (data) => {
+      setPipelineData(data);
+    },
+  });
+
   function handleRunPipeline() {
     pipelineMutation.mutate();
   }
 
-  const pipelineData = pipelineMutation.data;
+  function handleRefresh() {
+    if (window.confirm("This will re-fetch all data from source databases. Continue?")) {
+      refreshMutation.mutate();
+    }
+  }
   const specNames = pipelineData ? Object.keys(pipelineData.receiver_specs) : [];
 
   const tabs = [
@@ -205,11 +236,13 @@ export function OffloadPage() {
           </div>
         )}
 
-        {pipelineMutation.isPending && (
+        {(pipelineMutation.isPending || refreshMutation.isPending) && (
           <div className="mt-4 flex items-center gap-2 text-gray-500">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm">
-              Running pipeline (fetching from MESDW, Oracle, Cube)... This may take 30-60 seconds.
+              {refreshMutation.isPending
+                ? "Refreshing pipeline (full re-fetch from source DBs)... This may take several minutes."
+                : "Running pipeline (fetching from MESDW, Oracle, Cube)... This may take 30-60 seconds."}
             </span>
           </div>
         )}
@@ -220,13 +253,30 @@ export function OffloadPage() {
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-200 px-5 py-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">
-                Pipeline Results ({startDate} ~ {endDate})
-              </h3>
-              <div className="text-xs text-gray-500">
-                General: {pipelineData.summary.general_rows} rows |
-                Specs: {pipelineData.summary.total_specs} |
-                Attribute: {pipelineData.summary.attribute_rows} rows
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Pipeline Results ({startDate} ~ {endDate})
+                </h3>
+                {pipelineData._cache_meta?.cached && (
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    Cached data (updated: {new Date(pipelineData._cache_meta.cached_at!).toLocaleString()})
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-gray-500">
+                  General: {pipelineData.summary.general_rows} |
+                  Specs: {pipelineData.summary.total_specs} |
+                  Attr: {pipelineData.summary.attribute_rows}
+                </div>
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshMutation.isPending}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
+                  {refreshMutation.isPending ? "Refreshing..." : "Refresh"}
+                </button>
               </div>
             </div>
 

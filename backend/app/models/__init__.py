@@ -4,6 +4,7 @@ from app.models.daily_analysis import DailyAttribute, DailyMl, DailyMsl
 from app.models.data_management import AttributeItem, MlItem, MslItem, Tank
 from app.models.defect import Defect
 from app.models.etl_job import EtlJob
+from app.models.pipeline_cache import PipelineCache
 from app.models.plant import OffloadSelection, Plant, PlantCriteria
 from app.models.risk import RiskAssessment, RiskRule
 from app.models.shipping import ShippingAssignment, ShippingSchedule
@@ -21,6 +22,7 @@ __all__ = [
     "MlItem",
     "MslItem",
     "OffloadSelection",
+    "PipelineCache",
     "Plant",
     "PlantCriteria",
     "RiskAssessment",

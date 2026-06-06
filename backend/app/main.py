@@ -11,6 +11,11 @@ from app.middleware.rate_limit import limiter
 
 @asynccontextmanager
 async def lifespan(app):
+    from app.database import Base, engine
+    import app.models  # noqa: F401 — register all models
+
+    Base.metadata.create_all(bind=engine)
+
     from app.etl.scheduler import setup_scheduler
 
     setup_scheduler()

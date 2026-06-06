@@ -19,11 +19,13 @@ def setup_scheduler():
     from app.etl.defect_sync import run_defect_sync
     from app.etl.cube_sync import run_cube_sync
     from app.etl.shipping_import import run_shipping_import
+    from app.etl.pipeline_sync import run_pipeline_sync
 
     scheduler.add_job(run_batch_sync, CronTrigger(hour=6, minute=0), id="batch_sync")
     scheduler.add_job(run_defect_sync, CronTrigger(hour=6, minute=15), id="defect_sync")
     scheduler.add_job(run_cube_sync, CronTrigger(hour=6, minute=30), id="cube_sync")
     scheduler.add_job(run_shipping_import, CronTrigger(hour=6, minute=45), id="shipping_import")
+    scheduler.add_job(run_pipeline_sync, CronTrigger(hour=7, minute=30), id="pipeline_sync")
 
     scheduler.start()
-    logger.info("ETL scheduler started with 4 daily jobs at 06:00-06:45")
+    logger.info("ETL scheduler started with 5 daily jobs at 06:00-07:30")

@@ -29,7 +29,7 @@ def add_composite_columns(df: pd.DataFrame,
             #print(f"  • {new_col} ← sum of {cols}")
             df[new_col] = df[cols].sum(axis=1)
         else:
-            print(f"  ⚠️ {new_col}: no matching columns")
+            print(f"  [WARN] {new_col}: no matching columns")
             df[new_col] = 0
     return df
 

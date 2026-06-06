@@ -147,7 +147,7 @@ def compute_solid_density(crate_df: pd.DataFrame,
     if tanks is None:
         tanks = TANKS_TO_PROCESS
     
-    print(f"🔍 Computing SOLID density for {len(tanks)} tanks: {tanks}")
+    print(f"[SOLID] Computing density for {len(tanks)} tanks: {tanks}")
     
     results = []
     for tank in tanks:
@@ -160,7 +160,7 @@ def compute_solid_density(crate_df: pd.DataFrame,
             if not res.empty:
                 results.append(res)
         except Exception as e:
-            print(f"  ❌ {tank} failed: {repr(e)[:200]}")
+            print(f"  [ERROR] {tank} failed: {repr(e)[:200]}")
     
     if not results:
         return pd.DataFrame(

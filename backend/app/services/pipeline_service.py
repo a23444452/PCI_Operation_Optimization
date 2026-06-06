@@ -119,8 +119,12 @@ def run_offload_pipeline(start_date: str, end_date: str, max_batches: int = 0, p
     crate_ids = crate_resume["crate_id"].unique().tolist()
     logger.info("Found %d crates, %d batches", len(crate_ids), len(batch_ids))
 
-    # Step 2: Solid density
-    solid_df = compute_solid_density(crate_resume)
+    # Step 2: Solid density (Oracle PPDA — skip in preview mode for speed)
+    if max_batches == 0:
+        solid_df = compute_solid_density(crate_resume)
+    else:
+        logger.info("Skipping SOLID density in preview mode (max_batches=%d)", max_batches)
+        solid_df = pd.DataFrame(columns=["crate_id", "tank_id", "defect_cnts", "input_cnts", "crBIS"])
 
     # Step 3: Defects (optionally limited)
     if max_batches > 0:
@@ -154,13 +158,17 @@ def run_offload_pipeline(start_date: str, end_date: str, max_batches: int = 0, p
     general_df = add_composite_columns(general_df)
     general_df = format_as_percent(general_df, exclude=["in_qty"])
 
-    # Step 7: Attribute pipeline (Oracle PPDA)
-    try:
-        logger.info("Running attribute pipeline for %d crates...", len(crate_ids))
-        attr_df = run_attribute_pipeline(crate_ids, process=ATTRIBUTE_PROCESS)
-        attr_df = format_attribute_for_display(attr_df)
-    except Exception as e:
-        logger.warning("Attribute pipeline failed: %s", str(e)[:200])
+    # Step 7: Attribute pipeline (Oracle PPDA) — skip in preview mode for speed
+    if max_batches == 0:
+        try:
+            logger.info("Running attribute pipeline for %d crates...", len(crate_ids))
+            attr_df = run_attribute_pipeline(crate_ids, process=ATTRIBUTE_PROCESS)
+            attr_df = format_attribute_for_display(attr_df)
+        except Exception as e:
+            logger.warning("Attribute pipeline failed: %s", str(e)[:200])
+            attr_df = pd.DataFrame()
+    else:
+        logger.info("Skipping attribute pipeline in preview mode (max_batches=%d)", max_batches)
         attr_df = pd.DataFrame()
 
     # Convert to JSON-serializable format
