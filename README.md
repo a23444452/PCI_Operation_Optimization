@@ -21,7 +21,16 @@ Full-stack web application for PCI (Process Control Inspection) operation optimi
 
 ## Quick Start
 
-### 1. Database
+### Option A: Automated Setup (Recommended)
+
+```powershell
+.\scripts\setup.ps1          # Install all dependencies (backend venv + frontend npm)
+.\scripts\start-dev.ps1      # Start both backend (8001) + frontend (8080)
+```
+
+### Option B: Manual Setup
+
+#### 1. Database
 
 **Development (SQLite — zero setup):**
 
@@ -38,12 +47,12 @@ Then update `.env`:
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pci_optimization
 ```
 
-### 2. Backend
+#### 2. Backend
 
 ```bash
 cd backend
-python -m venv venv
-venv\Scripts\activate        # Windows
+python -m venv .venv
+.venv\Scripts\activate       # Windows
 
 pip install -r requirements.txt
 
@@ -61,7 +70,7 @@ python -m app.seed
 uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-### 3. Frontend
+#### 3. Frontend
 
 ```bash
 cd frontend
@@ -71,11 +80,11 @@ npm install
 cp .env.example .env
 # Edit .env with Azure AD client ID and tenant ID
 
-# Start dev server
+# Start dev server (HTTPS enabled for MSAL SSO)
 npm run dev
 ```
 
-Visit http://localhost:8080
+Visit https://localhost:8080 (HTTPS required for Azure AD SSO)
 
 ## Default Credentials
 
@@ -251,12 +260,46 @@ Tracks attribute-level quality metrics per tank over time.
 
 ---
 
-### 7. Admin Dashboard
+### 7. Pipeline Cache (Offload)
+
+**Purpose:** Accelerate pipeline queries by caching daily results in the system database.
+
+**Architecture:**
+```
+[APScheduler 7:30 daily]
+    → run_offload_pipeline(yesterday 7:00 ~ today 7:00)
+    → store result in pipeline_cache table (JSON)
+
+[User query]
+    → check cache → hit = instant response (<1s)
+                  → miss = live pipeline → save to cache → return
+
+[Manual refresh]
+    → invalidate cache → re-run pipeline → save → return
+```
+
+**Scheduled Job:**
+- Runs daily at 07:30 (after 07:30 shift handover)
+- Queries previous day 07:00 ~ today 07:00 for all active plants
+- Full pipeline: MESDW + Oracle PPDA (SOLID density + attribute)
+- Results stored as JSON in `pipeline_cache` table
+
+**Preview vs Full Mode:**
+- Preview (manual query with `max_batches > 0`): skips Oracle PPDA queries (~30s)
+- Full (scheduled job with `max_batches = 0`): includes all data sources (minutes)
+
+**Manual Refresh:**
+- POST `/api/v1/offload/pipeline/refresh` — re-runs full pipeline for given date range
+- Used when data corrections or late entries occur
+
+---
+
+### 8. Admin Dashboard
 
 **Purpose:** System administration including ETL management and user approval.
 
 **ETL Management:**
-- View status of all 4 ETL jobs (last run time, status, row count)
+- View status of all ETL jobs (last run time, status, row count)
 - Manually trigger any ETL job
 - View error logs for failed jobs
 
@@ -331,6 +374,7 @@ Daily ETL runs automatically (configurable in `.env`):
 | 06:15 | Defect Sync | Oracle PPDA | Defect inspection results |
 | 06:30 | Cube MSL Sync | SSAS Cube | Mechanical stress level data |
 | 06:45 | Shipping Import | Shared Folder (Excel) | Shipping schedules from logistics |
+| 07:30 | Pipeline Sync | MESDW + Oracle PPDA | Full offload pipeline (cache for instant queries) |
 
 ### Data Sources
 
@@ -372,6 +416,8 @@ Base URL: `http://localhost:8001/api/v1`
 | GET | `/offload/plants/{id}/crates` | Evaluate crates for a plant |
 | POST | `/offload/selections` | Create offload selection |
 | GET | `/offload/selections` | List past selections |
+| GET | `/offload/pipeline` | Query pipeline (cache-first, falls back to live) |
+| POST | `/offload/pipeline/refresh` | Invalidate cache and re-run full pipeline |
 
 ### Shipping
 
@@ -499,6 +545,7 @@ backend/
 │   ├── models/             # SQLAlchemy ORM models
 │   │   ├── user.py         # User + UserPermission
 │   │   ├── offload.py      # Plant, PlantCriteria, OffloadSelection
+│   │   ├── pipeline_cache.py # PipelineCache (daily cached results)
 │   │   ├── shipping.py     # ShippingSchedule, ShippingAssignment
 │   │   ├── analysis.py     # Tank, MlItem, MslItem, AttributeItem, AnalysisData
 │   │   ├── risk.py         # RiskRule, RiskCrate
@@ -516,19 +563,28 @@ backend/
 │   ├── services/           # Business logic layer
 │   │   ├── auth_service.py
 │   │   ├── offload_service.py
+│   │   ├── pipeline_cache_service.py  # Cache CRUD + run_and_cache
+│   │   ├── pipeline_service.py        # Live pipeline execution
 │   │   └── shipping_service.py
 │   ├── etl/                # ETL jobs + scheduler
 │   │   ├── scheduler.py    # APScheduler cron config
 │   │   ├── connections.py  # Oracle + MSSQL context managers
-│   │   ├── batch_sync.py   # MESDW → PostgreSQL
-│   │   ├── defect_sync.py  # Oracle PPDA → PostgreSQL
-│   │   ├── cube_sync.py    # SSAS Cube → PostgreSQL
-│   │   └── shipping_import.py  # Excel → PostgreSQL
+│   │   ├── batch_sync.py   # MESDW → DB
+│   │   ├── defect_sync.py  # Oracle PPDA → DB
+│   │   ├── cube_sync.py    # SSAS Cube → DB
+│   │   ├── pipeline_sync.py # Daily pipeline cache (7:30)
+│   │   └── shipping_import.py  # Excel → DB
 │   ├── middleware/         # Rate limiting
 │   └── utils/              # Security, Azure AD, LDAP
 ├── alembic/                # Database migrations
 ├── requirements.txt
 └── .env.example
+
+scripts/
+├── setup.ps1               # Install dependencies (backend venv + frontend npm)
+├── start-dev.ps1           # Start both services (backend + frontend)
+├── start-backend.ps1       # Backend only (port 8001)
+└── start-frontend.ps1      # Frontend only (port 8080, HTTPS)
 
 frontend/
 ├── src/
@@ -554,44 +610,74 @@ frontend/
 
 ## Ports
 
-| Service | Port |
-|---------|------|
-| Frontend | 8080 |
-| Backend | 8001 |
-| PostgreSQL | 5433 |
+| Service | Port | Protocol |
+|---------|------|----------|
+| Frontend | 8080 | HTTPS |
+| Backend | 8001 | HTTP |
+| PostgreSQL | 5433 | TCP |
 
 ---
 
 ## Deployment (Windows Server)
 
-### Production Setup
+### Server: 10.195.19.225
 
-1. **PostgreSQL**: Install and configure on port 5433
-2. **Backend**: Run with production ASGI server
-   ```bash
-   pip install gunicorn uvicorn[standard]
-   gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001
-   ```
-3. **Frontend**: Build and serve with nginx or IIS
-   ```bash
-   cd frontend
-   npm run build
-   # Deploy dist/ folder to web server
-   ```
-4. **ETL**: Ensure network access to Oracle, MSSQL, SSAS from the server
-5. **Windows Service**: Use NSSM or Task Scheduler to run backend as a service
+This project runs alongside Dt_Quality_Roadmap on the same server. Port allocation:
+
+| Project | Frontend | Backend |
+|---------|----------|---------|
+| PCI Hermes | 8080 (HTTPS) | 8001 |
+| Dt_Quality_Roadmap | 5173 | 8000 |
+
+### Automated Deployment
+
+```powershell
+# 1. Clone and setup
+git clone <repo-url>
+cd PCI_Operation_Optimization
+.\scripts\setup.ps1
+
+# 2. Verify .env files
+# backend\.env — database, Azure AD, LDAP, ETL connections
+# frontend\.env — Azure AD client/tenant IDs
+
+# 3. Start services
+.\scripts\start-dev.ps1      # Both frontend + backend
+# Or individually:
+.\scripts\start-backend.ps1  # Backend only (port 8001)
+.\scripts\start-frontend.ps1 # Frontend only (port 8080, HTTPS)
+```
+
+### Production Setup (Nginx)
+
+An `nginx.conf` is provided for production reverse proxy:
+- HTTPS on port 8080 (self-signed cert or replace with real cert)
+- Proxies `/api/` to backend at `localhost:8001`
+- Serves frontend static files from `frontend/dist/`
+
+```bash
+# Build frontend for production
+cd frontend && npm run build
+
+# Start nginx with provided config
+nginx -c /path/to/PCI_Operation_Optimization/nginx.conf
+```
+
+### Azure Portal Configuration
+
+Add the server's redirect URI to the App Registration:
+- Authentication → Add SPA Redirect URI: `https://10.195.19.225:8080`
 
 ### Network Requirements
 
 | Source | Destination | Port | Protocol |
 |--------|------------|------|----------|
-| Backend | PostgreSQL | 5433 | TCP |
 | Backend | Oracle PPDA | 1521 | TCP |
 | Backend | MESDW SQL Server | 1433 | TCP |
 | Backend | SSAS Cube (cgtppd) | 2383 | TCP |
 | Backend | AD (ap.corning.com) | 636 | LDAPS |
-| Frontend | Backend | 8001 | HTTP |
-| Users | Frontend | 8080 | HTTP |
+| Backend | SMTP Hub | 25 | TCP |
+| Users (Intranet) | Frontend | 8080 | HTTPS |
 
 ---
 
